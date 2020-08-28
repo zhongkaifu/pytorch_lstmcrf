@@ -192,6 +192,9 @@ def get_optimizer(config: Config, model: nn.Module,
 def write_results(filename: str, insts):
     f = open(filename, 'w', encoding='utf-8')
     for inst in insts:
+        if inst.comment != None:
+            f.write("{}\n".format(inst.comment))
+
         for i in range(len(inst.input)):
             words = inst.input.ori_words
             output = inst.output

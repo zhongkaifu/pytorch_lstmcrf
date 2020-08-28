@@ -25,13 +25,20 @@ class Reader:
             words = []
             ori_words = []
             labels = []
+            comment = None
             for line in tqdm(f.readlines()):
                 line = line.rstrip()
+                
+                if line.startswith("#"):
+                    comment = line
+                    continue
+
                 if line == "":
-                    insts.append(Instance(Sentence(words, ori_words), labels))
+                    insts.append(Instance(Sentence(words, ori_words), labels, comment))
                     words = []
                     ori_words = []
                     labels = []
+                    comment = None
                     if len(insts) == number:
                         break
                     continue
@@ -43,6 +50,28 @@ class Reader:
                 words.append(word)
                 self.vocab.add(word)
                 labels.append(label)
+
+                if len(words) > 220:
+                    
+                    word = '[SentSEP_End]'
+                    ori_words.append(word)
+                    words.append(word)
+                    self.vocab.add(word)
+                    labels.append('B-S')
+
+                    insts.append(Instance(Sentence(words, ori_words), labels, comment))
+                    
+                    words = []
+                    ori_words = []
+                    labels = []
+
+                    word = '[SentSEP_Start]'
+                    ori_words.append(word)
+                    words.append(word)
+                    self.vocab.add(word)
+                    labels.append('B-S')
+
+
         print("number of sentences: {}".format(len(insts)))
         return insts
 

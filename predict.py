@@ -30,12 +30,12 @@ def set_seed(opt, seed):
 
 def parse_arguments(parser):
     ###Training Hyperparameters
-    parser.add_argument('--device', type=str, default="cuda:0", choices=['cpu', 'cuda:0', 'cuda:1', 'cuda:2'],
+    parser.add_argument('--device', type=str, default="cpu", choices=['cpu', 'cuda:0', 'cuda:1', 'cuda:2'],
                         help="GPU/CPU devices")
     parser.add_argument('--seed', type=int, default=42, help="random seed")
     parser.add_argument('--digit2zero', action="store_true", default=False,
                         help="convert the number to 0, make it true is better")
-    parser.add_argument('--dataset', type=str, default="med")
+    parser.add_argument('--dataset', type=str, default="deid")
     parser.add_argument('--embedding_file', type=str, default="data/glove.6B.100d.txt",
                         help="we will be using random embeddings if file do not exist")
     parser.add_argument('--embedding_dim', type=int, default=200)
@@ -44,7 +44,7 @@ def parse_arguments(parser):
     parser.add_argument('--momentum', type=float, default=0.0)
     parser.add_argument('--l2', type=float, default=1e-8)
     parser.add_argument('--lr_decay', type=float, default=0)
-    parser.add_argument('--batch_size', type=int, default=10, help="default batch size is 10 (works well for normal neural crf), here default 30 for bert-based crf")
+    parser.add_argument('--batch_size', type=int, default=4, help="default batch size is 10 (works well for normal neural crf), here default 30 for bert-based crf")
     parser.add_argument('--num_epochs', type=int, default=100, help="Usually we set to 10.")
     parser.add_argument('--train_num', type=int, default=-1, help="-1 means all the data")
     parser.add_argument('--dev_num', type=int, default=-1, help="-1 means all the data")
@@ -53,7 +53,7 @@ def parse_arguments(parser):
     parser.add_argument('--max_grad_norm', type=float, default=1.0, help="The maximum gradient norm, if <=0, means no clipping, usually we don't use clipping for normal neural ncrf")
 
     ##model hyperparameter
-    parser.add_argument('--model_folder', type=str, default="english_model", help="The name to save the model files")
+    parser.add_argument('--model_folder', type=str, default="output", help="The name to save the model files")
     parser.add_argument('--hidden_dim', type=int, default=256, help="hidden size of the LSTM, usually we set to 200 for LSTM-CRF")
     parser.add_argument('--dropout', type=float, default=0.5, help="dropout for embedding")
     parser.add_argument('--use_char_rnn', type=int, default=1, choices=[0, 1], help="use character-level lstm, 0 or 1")
@@ -74,104 +74,48 @@ def parse_arguments(parser):
     return args
 
 
-def train_model(config: Config, epoch: int, train_insts: List[Instance], dev_insts: List[Instance], test_insts: List[Instance]):
+def train_model(config: Config, test_insts: List[Instance]):
     ### Data Processing Info
-    train_num = len(train_insts)
-    print("number of instances: %d" % (train_num))
-    print(colored("[Shuffled] Shuffle the training instance ids", "red"))
-    random.shuffle(train_insts)
 
-    batched_data = batching_list_instances(config, train_insts)
-    dev_batches = batching_list_instances(config, dev_insts)
-    test_batches = batching_list_instances(config, test_insts)
+  #  test_batches = batching_list_instances(config, test_insts)
 
 
-    if config.embedder_type == "normal":
-        model = NNCRF(config)
-        optimizer = get_optimizer(config, model)
-        scheduler = None
-    else:
-        print(
-            colored(f"[Model Info]: Working with transformers package from huggingface with {config.embedder_type}", 'red'))
-        print(colored(f"[Optimizer Info]: You should be aware that you are using the optimizer from huggingface.", 'red'))
-        print(colored(f"[Optimizer Info]: Change the optimier in transformers_util.py if you want to make some modifications.", 'red'))
-        model = TransformersCRF(config)
-        optimizer, scheduler = get_huggingface_optimizer_and_scheduler(config, model, num_training_steps=len(batched_data) * epoch,
-                                                                       weight_decay=0.0,
-                                                                       eps = 1e-8,
-                                                                       warmup_step=0)
-        print(colored(f"[Optimizer Info] Modify the optimizer info as you need.", 'red'))
-        print(optimizer)
+  #  if config.embedder_type == "normal":
+  #      model = NNCRF(config)
+  #  else:
+  #      print(
+  #          colored(f"[Model Info]: Working with transformers package from huggingface with {config.embedder_type}", 'red'))
+  #      print(colored(f"[Optimizer Info]: You should be aware that you are using the optimizer from huggingface.", 'red'))
+  #      print(colored(f"[Optimizer Info]: Change the optimier in transformers_util.py if you want to make some modifications.", 'red'))
+  #      model = TransformersCRF(config)
+  #      print(colored(f"[Optimizer Info] Modify the optimizer info as you need.", 'red'))
 
-    best_dev = [-1, 0]
-    best_test = [-1, 0]
+  #  best_dev = [-1, 0]
+  #  best_test = [-1, 0]
 
     model_folder = config.model_folder
     res_folder = "results"
-    if os.path.exists("model_files/" + model_folder):
-        raise FileExistsError(
-            f"The folder model_files/{model_folder} exists. Please either delete it or create a new one "
-            f"to avoid override.")
     model_path = f"model_files/{model_folder}/lstm_crf.m"
     config_path = f"model_files/{model_folder}/config.conf"
     res_path = f"{res_folder}/{model_folder}.results"
-    print("[Info] The model will be saved to: %s.tar.gz" % (model_folder))
-    os.makedirs(f"model_files/{model_folder}", exist_ok= True) ## create model files. not raise error if exist
-    os.makedirs(res_folder, exist_ok=True)
-    no_incre_dev = 0
-    for i in tqdm(range(1, epoch + 1), desc="Epoch"):
-        epoch_loss = 0
-        start_time = time.time()
-        model.zero_grad()
-        if config.optimizer.lower() == "sgd":
-            optimizer = lr_decay(config, optimizer, i)
-        for index in tqdm(np.random.permutation(len(batched_data)), desc="--training batch", total=len(batched_data)):
-            model.train()
-            loss = model(**batched_data[index])
-            epoch_loss += loss.item()
-            loss.backward()
-            if config.max_grad_norm > 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
-            optimizer.step()
-            optimizer.zero_grad()
-            model.zero_grad()
-            if scheduler is not None:
-                scheduler.step()
-        end_time = time.time()
-        print("Epoch %d: %.5f, Time is %.2fs" % (i, epoch_loss, end_time - start_time), flush=True)
-
-        model.eval()
-        dev_metrics = evaluate_model(config, model, dev_batches, "dev", dev_insts)
-        test_metrics = evaluate_model(config, model, test_batches, "test", test_insts)
-        if dev_metrics[2] > best_dev[0]:
-            print("saving the best model...")
-            no_incre_dev = 0
-            best_dev[0] = dev_metrics[2]
-            best_dev[1] = i
-            best_test[0] = test_metrics[2]
-            best_test[1] = i
-            torch.save(model.state_dict(), model_path)
-            # Save the corresponding config as well.
-            f = open(config_path, 'wb')
-            pickle.dump(config, f)
-            f.close()
-            write_results(res_path, test_insts)
-        else:
-            no_incre_dev += 1
-        model.zero_grad()
-        if no_incre_dev >= config.max_no_incre:
-            print("early stop because there are %d epochs not increasing f1 on dev"%no_incre_dev)
-            break
-
-    print("Archiving the best Model...")
-    with tarfile.open(f"model_files/{model_folder}/{model_folder}.tar.gz", "w:gz") as tar:
-        tar.add(f"model_files/{model_folder}", arcname=os.path.basename(model_folder))
-
-    print("Finished archiving the models")
-
-    print("The best dev: %.2f" % (best_dev[0]))
-    print("The corresponding test: %.2f" % (best_test[0]))
+    
     print("Final testing.")
+
+
+    f = open(config_path, 'rb')
+    config = pickle.load(f)  # variables come out in the order you put them in
+
+
+
+   # config.build_label_idx(test_insts)
+
+    print(colored(f"[Data Info] Tokenizing the instances using '{config.embedder_type}' tokenizer", "red"))
+    tokenize_instance(context_models[config.embedder_type]["tokenizer"].from_pretrained(config.embedder_type), test_insts, None)
+
+    test_batches = batching_list_instances(config, test_insts)
+
+    model = TransformersCRF(config)
+
     model.load_state_dict(torch.load(model_path))
     model.eval()
     evaluate_model(config, model, test_batches, "test", test_insts)
@@ -215,39 +159,39 @@ def main():
     reader = Reader(conf.digit2zero)
     set_seed(opt, conf.seed)
 
-    trains = reader.read_txt(conf.train_file, conf.train_num)
-    devs = reader.read_txt(conf.dev_file, conf.dev_num)
+    #trains = reader.read_txt(conf.train_file, conf.train_num)
+    #devs = reader.read_txt(conf.dev_file, conf.dev_num)
     tests = reader.read_txt(conf.test_file, conf.test_num)
 
     if conf.static_context_emb != ContextEmb.none:
         print('Loading the static ELMo vectors for all datasets.')
-        conf.context_emb_size = load_elmo_vec(conf.train_file + "." + conf.static_context_emb.name + ".vec", trains)
+       # conf.context_emb_size = load_elmo_vec(conf.train_file + "." + conf.static_context_emb.name + ".vec", trains)
         load_elmo_vec(conf.dev_file + "." + conf.static_context_emb.name + ".vec", devs)
         load_elmo_vec(conf.test_file + "." + conf.static_context_emb.name + ".vec", tests)
 
-    conf.use_iobes(trains + devs + tests)
-    conf.build_label_idx(trains + devs + tests)
+  #  conf.use_iobes(tests)
+  #  conf.build_label_idx(tests)
 
-    if conf.embedder_type == "normal":
-        conf.build_word_idx(trains, devs, tests)
-        conf.build_emb_table()
+   # if conf.embedder_type == "normal":
+   #     conf.build_word_idx(tests)
+   #     conf.build_emb_table()
 
-        conf.map_insts_ids(trains)
-        conf.map_insts_ids(devs)
-        conf.map_insts_ids(tests)
-        print("[Data Info] num chars: " + str(conf.num_char))
+        #conf.map_insts_ids(trains)
+        #conf.map_insts_ids(devs)
+  #      conf.map_insts_ids(tests)
+  #      print("[Data Info] num chars: " + str(conf.num_char))
         # print(str(conf.char2idx))
-        print("[Data Info] num words: " + str(len(conf.word2idx)))
+ #       print("[Data Info] num words: " + str(len(conf.word2idx)))
         # print(config.word2idx)
-    else:
-        """
-        If we use the pretrained model from transformers
-        we need to use the pretrained tokenizer
-        """
-        print(colored(f"[Data Info] Tokenizing the instances using '{conf.embedder_type}' tokenizer", "red"))
-        tokenize_instance(context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type), trains + devs + tests, conf.label2idx)
+ #   else:
+    """
+    If we use the pretrained model from transformers
+    we need to use the pretrained tokenizer
+    """
+ #   print(colored(f"[Data Info] Tokenizing the instances using '{conf.embedder_type}' tokenizer", "red"))
+ #   tokenize_instance(context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type), tests, conf.label2idx)
 
-    train_model(conf, conf.num_epochs, trains, devs, tests)
+    train_model(conf, tests)
 
 
 if __name__ == "__main__":

@@ -68,7 +68,7 @@ def tokenize_instance(transformer_tokenizer: PreTrainedTokenizer, insts: List[In
             word_tokens = transformer_tokenizer.tokenize(word)
             for sub_token in word_tokens:
                 tokens.append(sub_token)
-        if inst.output:
+        if inst.output and label2idx:
             inst.output_ids = []
             for label in inst.output:
                 inst.output_ids.append(label2idx[label])
