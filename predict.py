@@ -1,3 +1,4 @@
+import argparse
 import numpy as np
 from config import Reader, Config, ContextEmb, predict_batch_insts, print_predict_results, batching_list_instances
 import time
@@ -10,6 +11,16 @@ from config.transformers_util import tokenize_instance
 from config import context_models
 import pickle
 import tarfile
+
+
+def parse_arguments(parser):
+    parser.add_argument('--device', type=str, default="cpu", choices=['cpu', 'cuda:0', 'cuda:1', 'cuda:2'], help="GPU/CPU devices")
+    parser.add_argument('--model', type=str, default="output.tar.gz", help="The file path of archived model")
+
+    args = parser.parse_args()
+    for k in args.__dict__:
+        print(k + ": " + str(args.__dict__[k]))
+    return args
 
 
 def predict(config: Config, model: NNCRF, test_insts: List[Instance]):
@@ -37,8 +48,10 @@ def predict_model(config: Config, model: NNCRF, batch_insts_ids, insts: List[Ins
 
 def main():
 
+    parser = argparse.ArgumentParser(description="BERT BiLSTM CRF implementation")
+    opt = parse_arguments(parser)
     
-    model_archived_file = "output.tar.gz"
+    model_archived_file = opt.model
 
     tar = tarfile.open(model_archived_file)
     tar.extractall()
