@@ -27,6 +27,23 @@ class Span:
         return hash((self.left, self.right, self.type))
 
 
+
+def predict_batch_insts(batch_insts: List[Instance],
+                        batch_pred_ids: torch.Tensor,
+                        word_seq_lens: torch.Tensor,
+                        idx2label: List[str]) -> List[Instance]:
+
+    for idx in range(len(batch_pred_ids)):
+        length = word_seq_lens[idx]
+        prediction = batch_pred_ids[idx][:length].tolist()
+        prediction = prediction[::-1]
+        prediction = [idx2label[l] for l in prediction]
+        batch_insts[idx].prediction = prediction
+    
+    return batch_insts
+
+
+
 def evaluate_batch_insts(batch_insts: List[Instance],
                          batch_pred_ids: torch.Tensor,
                          batch_gold_ids: torch.Tensor,

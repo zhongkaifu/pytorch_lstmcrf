@@ -188,6 +188,18 @@ def get_optimizer(config: Config, model: nn.Module,
         exit(1)
 
 
+def print_predict_results(insts):
+
+    for inst in insts:
+
+        for i in range(len(inst.input)):
+            words = inst.input.ori_words
+            prediction = inst.prediction
+
+            print("{}\t{}\t{}".format(i, words[i], prediction[i]))
+        
+        print("")
+
 
 def write_results(filename: str, insts):
     f = open(filename, 'w', encoding='utf-8')

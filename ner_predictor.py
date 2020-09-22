@@ -1,7 +1,7 @@
 
 import pickle
 
-from model import NNCRF
+from model import NNCRF, TransformersCRF
 import torch
 
 from config import simple_batching, ContextEmb
@@ -9,8 +9,6 @@ from typing import List, Union, Tuple
 from common import Instance, Sentence
 import tarfile
 
-from allennlp.commands.elmo import ElmoEmbedder
-from preprocess.get_elmo_vec import load_elmo, parse_sentence
 
 
 """
@@ -50,16 +48,10 @@ class NERPredictor:
         f.close()
         device = torch.device(cuda_device)
         self.conf.device = device
-        self.model = NNCRF(self.conf, print_info=False)
+        self.model = TransformersCRF(self.conf)
         self.model.load_state_dict(torch.load(folder_name + "/lstm_crf.m", map_location = device))
         self.model.eval()
 
-        if self.conf.context_emb != ContextEmb.none:
-            if cuda_device == "cpu":
-                cuda_device = -1
-            else:
-                cuda_device = int(cuda_device.split(":")[1])
-            self.elmo = load_elmo(cuda_device)
 
     def predict_insts(self, batch_insts_ids: Tuple) -> List[List[str]]:
         batch_max_scores, batch_max_ids = self.model.decode(batch_insts_ids)
@@ -112,3 +104,17 @@ def read_parse_write(elmo: ElmoEmbedder, insts: List[Instance], mode: str = "ave
     for inst in insts:
         vec = parse_sentence(elmo, inst.input.words, mode=mode)
         inst.elmo_vec = vec
+
+
+
+
+
+sentence = "This is a sentence"
+        # Or you can make a list of sentence:
+            # sentence = ["This is a sentence", "This is the second sentence"]
+
+model_path = "output.tar.gz"
+model = NERPredictor(model_path)
+prediction = model.predict(sentence)
+print(prediction)
+

@@ -18,6 +18,17 @@ class Reader:
         self.digit2zero = digit2zero
         self.vocab = set()
 
+
+    def read_line(self, line: str) -> List[Instance]:
+        insts = []
+        line = line.strip()
+        words = line.split()
+        insts.append(Instance(Sentence(words, words), None, None))
+
+        return insts
+
+
+
     def read_txt(self, file: str, number: int = -1) -> List[Instance]:
         print("Reading file: " + file)
         insts = []
