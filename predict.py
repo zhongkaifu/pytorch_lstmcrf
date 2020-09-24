@@ -13,6 +13,37 @@ import pickle
 import tarfile
 
 
+def init():
+
+    global model
+    global config
+
+    parser = argparse.ArgumentParser(description="BERT BiLSTM CRF implementation")
+    opt = parse_arguments(parser)
+
+    model_archived_file = opt.model
+
+    tar = tarfile.open(model_archived_file)
+    tar.extractall()
+    folder_name = tar.getnames()[0]
+    tar.close()
+
+
+    model_path = f"{folder_name}/lstm_crf.m"
+    config_path = f"{folder_name}/config.conf"
+
+
+    f = open(config_path, 'rb')
+    config = pickle.load(f)  # variables come out in the order you put them in
+    f.close()
+
+
+    model = TransformersCRF(config)
+    model.load_state_dict(torch.load(model_path, map_location='cpu'))
+    model.eval()
+
+
+
 def parse_arguments(parser):
     parser.add_argument('--device', type=str, default="cpu", choices=['cpu', 'cuda:0', 'cuda:1', 'cuda:2'], help="GPU/CPU devices")
     parser.add_argument('--model', type=str, default="output.tar.gz", help="The file path of archived model")
@@ -48,28 +79,7 @@ def predict_model(config: Config, model: NNCRF, batch_insts_ids, insts: List[Ins
 
 def main():
 
-    parser = argparse.ArgumentParser(description="BERT BiLSTM CRF implementation")
-    opt = parse_arguments(parser)
-    
-    model_archived_file = opt.model
-
-    tar = tarfile.open(model_archived_file)
-    tar.extractall()
-    folder_name = tar.getnames()[0]
-    tar.close()
-
-
-    model_path = f"{folder_name}/lstm_crf.m"
-    config_path = f"{folder_name}/config.conf"
-
-
-    f = open(config_path, 'rb')
-    config = pickle.load(f)  # variables come out in the order you put them in
-
-    model = TransformersCRF(config)
-    model.load_state_dict(torch.load(model_path))
-    model.eval()
-
+    init()
 
 
     reader = Reader(config.digit2zero)
