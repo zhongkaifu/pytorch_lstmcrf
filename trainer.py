@@ -245,7 +245,10 @@ def main():
         we need to use the pretrained tokenizer
         """
         print(colored(f"[Data Info] Tokenizing the instances using '{conf.embedder_type}' tokenizer", "red"))
-        tokenize_instance(context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type), trains + devs + tests, conf.label2idx)
+        trains = tokenize_instance(context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type), trains, conf.label2idx)
+        devs = tokenize_instance(context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type), devs, conf.label2idx)
+        tests = tokenize_instance(context_models[conf.embedder_type]["tokenizer"].from_pretrained(conf.embedder_type), tests, conf.label2idx)
+
 
     train_model(conf, conf.num_epochs, trains, devs, tests)
 

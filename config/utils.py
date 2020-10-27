@@ -201,6 +201,20 @@ def print_predict_results(insts):
         print("")
 
 
+def print_eval_results(insts):
+    
+    for inst in insts:
+        for i in range(len(inst.input)):
+            words = inst.input.ori_words
+            prediction = inst.prediction
+            true_result = inst.output
+
+            print("{}\t{}\t{}\t{}".format(i, words[i], true_result[i], prediction[i]))
+        
+        print("")
+
+
+
 def write_results(filename: str, insts):
     f = open(filename, 'w', encoding='utf-8')
     for inst in insts:

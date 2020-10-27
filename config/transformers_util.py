@@ -48,13 +48,16 @@ def get_huggingface_optimizer_and_scheduler(config: Config, model: nn.Module,
     )
     return optimizer, scheduler
 
-def tokenize_instance(transformer_tokenizer: PreTrainedTokenizer, insts: List[Instance], label2idx: Dict[str, int]) -> None:
+def tokenize_instance(transformer_tokenizer: PreTrainedTokenizer, insts: List[Instance], label2idx: Dict[str, int]) -> List[Instance]:
     """
     Tokenize the instances for BERT-based model
     :param tokenizer: Pretrained_Tokenizer from the transformer packages
     :param insts: List[List[Instance]
     :return: None
     """
+
+    new_insts = []
+
     for inst in insts:
         tokens = [] ## store the wordpiece tokens
         orig_to_tok_index = []
@@ -73,7 +76,13 @@ def tokenize_instance(transformer_tokenizer: PreTrainedTokenizer, insts: List[In
             for label in inst.output:
                 inst.output_ids.append(label2idx[label])
 
-        input_ids = transformer_tokenizer.convert_tokens_to_ids([transformer_tokenizer.cls_token] + tokens + [transformer_tokenizer.sep_token])
-        inst.word_ids = input_ids
-        inst.orig_to_tok_index = orig_to_tok_index
 
+        if len(tokens) < 510:
+            input_ids = transformer_tokenizer.convert_tokens_to_ids([transformer_tokenizer.cls_token] + tokens + [transformer_tokenizer.sep_token])
+            inst.word_ids = input_ids
+            inst.orig_to_tok_index = orig_to_tok_index
+
+            new_insts.append(inst)
+
+
+    return new_insts
