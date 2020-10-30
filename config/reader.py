@@ -62,26 +62,6 @@ class Reader:
                 self.vocab.add(word)
                 labels.append(label)
 
-                if len(words) > 220:
-                    
-                    word = '[SentSEP_End]'
-                    ori_words.append(word)
-                    words.append(word)
-                    self.vocab.add(word)
-                    labels.append('B-S')
-
-                    insts.append(Instance(Sentence(words, ori_words), labels, comment))
-                    
-                    words = []
-                    ori_words = []
-                    labels = []
-
-                    word = '[SentSEP_Start]'
-                    ori_words.append(word)
-                    words.append(word)
-                    self.vocab.add(word)
-                    labels.append('B-S')
-
 
         print("number of sentences: {}".format(len(insts)))
         return insts

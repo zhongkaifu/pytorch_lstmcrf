@@ -37,6 +37,7 @@ def init():
     config = pickle.load(f)  # variables come out in the order you put them in
     f.close()
 
+    config.device="cpu"
 
     model = TransformersCRF(config)
     model.load_state_dict(torch.load(model_path, map_location='cpu'))
@@ -85,11 +86,11 @@ def main():
     reader = Reader(config.digit2zero)
     #tests = reader.read_txt(config.test_file, config.test_num)
 
-    tests = reader.read_line('[BOS] [space] hello [space] world [space] [EOS]')
+    tests = reader.read_line('[BOS] [CLS] hello [CLS] world [CLS] [EOS]')
     predict(config, model, tests)
 
 
-    tests = reader.read_line('[BOS] [space] how [space] are [space] you [space] doing [space] today [space] [EOS]')
+    tests = reader.read_line('[BOS] [CLS] how [CLS] are [CLS] you [CLS] doing [CLS] today [CLS] [EOS]')
     predict(config, model, tests)
 
 

@@ -71,13 +71,14 @@ def tokenize_instance(transformer_tokenizer: PreTrainedTokenizer, insts: List[In
             word_tokens = transformer_tokenizer.tokenize(word)
             for sub_token in word_tokens:
                 tokens.append(sub_token)
+
         if inst.output and label2idx:
             inst.output_ids = []
             for label in inst.output:
                 inst.output_ids.append(label2idx[label])
 
 
-        if len(tokens) < 510:
+        if len(tokens) + 2 <= transformer_tokenizer.model_max_length:
             input_ids = transformer_tokenizer.convert_tokens_to_ids([transformer_tokenizer.cls_token] + tokens + [transformer_tokenizer.sep_token])
             inst.word_ids = input_ids
             inst.orig_to_tok_index = orig_to_tok_index
